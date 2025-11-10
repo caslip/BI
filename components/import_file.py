@@ -135,9 +135,7 @@ def toggle_csv_modal(open_clicks, close_clicks, is_open):
     if open_clicks or close_clicks:
         return not is_open
     return is_open
-
-
-# 获取 csv 并显示
+# Get csv file content
 @callback(Output('uploaded-data-store', 'data', allow_duplicate=True),
           Output('upload-text', 'children'),
               Input('upload-in-modal', 'contents'),
@@ -145,27 +143,26 @@ def toggle_csv_modal(open_clicks, close_clicks, is_open):
               State('upload-in-modal', 'last_modified'),
               prevent_initial_call=True)
 def update_output(contents, filename, date):
-    with lock:
-        content_type, content_string = contents.split(',')
+    content_type, content_string = contents.split(',')
 
-        decoded = base64.b64decode(content_string)
-        try:
-            if 'csv' in filename:
-                # Assume that the user uploaded a CSV file
-                df = pd.read_csv(
-                    io.StringIO(decoded.decode('utf-8')))
-            elif 'xls' in filename:
-                # Assume that the user uploaded an excel file
-                df = pd.read_excel(io.BytesIO(decoded))
-        except Exception as e:
-            print(e)
-            return html.Div([
-                'There was an error processing this file.'
-            ])
-        
-        print(df.head())
+    decoded = base64.b64decode(content_string)
+    try:
+        if 'csv' in filename:
+            # Assume that the user uploaded a CSV file
+            df = pd.read_csv(
+                io.StringIO(decoded.decode('utf-8')))
+        elif 'xls' in filename:
+            # Assume that the user uploaded an excel file
+            df = pd.read_excel(io.BytesIO(decoded))
+    except Exception as e:
+        print(e)
+        return html.Div([
+            'There was an error processing this file.'
+        ])
 
-        return df.to_dict('records'), f'File "{filename}" uploaded successfully!'
+    return df.to_dict('records'), f'File "{filename}" uploaded successfully!'
+
+
 
 @callback(
     Output("url-modal", "is_open"),
@@ -178,7 +175,7 @@ def toggle_url_modal(open_clicks, submit_clicks, is_open):
         return not is_open
     return is_open
 
-# 获取 URL 并显示
+# Get url file content
 @callback(
     Output("uploaded-data-store", "data", allow_duplicate=True),
     Input("submit-url", "n_clicks"),
@@ -190,7 +187,6 @@ def check_url(n_clicks, url):
         try:
             if n_clicks:
                 df = pd.read_csv(url)
-                print(df.head())
                 return df.to_dict('records')
         except Exception as e:
             print(e)
