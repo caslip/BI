@@ -34,14 +34,19 @@ app.layout = html.Div([
     html.Div(id='page-content')
 ])
 
+# 替代的跳转回调 - 直接监听数据存储的变化
 @app.callback(
-    Output('url', 'pathname'),  # 同时更新Store和跳转URL
-    Input('close-modal', 'n_clicks'),
-    State('uploaded-data-store', 'data'),
+    Output('url', 'pathname'),
+    Input('uploaded-data-store', 'data'),
+    State('submit-csv', 'n_clicks'),
+    State('submit-db', 'n_clicks'),
+    State('submit-url', 'n_clicks'),
     prevent_initial_call=True
 )
-def process_data_and_redirect(n_clicks, data):
-    if n_clicks > 0 and data is not None:
+def redirect_when_data_ready(data, csv_clicks, db_clicks, url_clicks):
+    # 如果有数据并且有任一按钮被点击过，则跳转
+    if data and len(data) > 0 and (csv_clicks or db_clicks or url_clicks):
+        print(f"数据已准备就绪，跳转到处理页面，数据长度: {len(data)}")
         return '/process'
     
     return dash.no_update

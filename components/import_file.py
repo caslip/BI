@@ -5,6 +5,7 @@ import pandas as pd
 import base64
 import io
 import threading
+from sqlalchemy import create_engine
 
 lock = threading.Lock()
 
@@ -33,6 +34,7 @@ sidebar = html.Div(
         html.P("Please import your data", className="lead"),
         dbc.ButtonGroup(
             [
+                # Button of CSV to trigger modals
                 dbc.Button( "Import from CSV",
                             id='csv-button',
                             style={
@@ -45,7 +47,6 @@ sidebar = html.Div(
                                 'textAlign': 'center',
                                 'margin': '10px'
                             },),
-
                 dbc.Modal(
                 [
                     dbc.ModalHeader("Upload File"),
@@ -66,12 +67,14 @@ sidebar = html.Div(
                             )
                         ),
                     dbc.ModalFooter(
-                        dbc.Button("Done", id="close-modal", n_clicks=0)
+                        dbc.Button("Done", id="submit-csv", n_clicks=0)
                     )
                     ],
                     id="csv-modal",
                     is_open=False,
                 ),
+                
+                # Button of Database to trigger modals
                 dbc.Button( "Import from Database", 
                             id="db-button",
                             style={
@@ -84,6 +87,51 @@ sidebar = html.Div(
                                 'textAlign': 'center',
                                 'margin': '10px'
                             },),
+                dbc.Modal(
+                [
+                    dbc.ModalHeader("Please config the MySQL connection"),
+                    dbc.ModalBody(
+                        dbc.Form([
+                            dbc.Row([
+                                dbc.Label("Host:", width=3),
+                                dbc.Col(dcc.Input(type="text", id="host-input", value="localhost"), width=9)
+                            ], className="mb-3"),
+                            
+                            dbc.Row([
+                                dbc.Label("Port:", width=3),
+                                dbc.Col(dcc.Input(type="number", id="port-input", value="3306"), width=9)
+                            ], className="mb-3"),
+
+                            dbc.Row([
+                                dbc.Label("Username:", width=3),
+                                dbc.Col(dcc.Input(type="text", id="username-input", value="root"), width=9)
+                            ], className="mb-3"),
+
+                            dbc.Row([
+                                dbc.Label("Password:", width=3),
+                                dbc.Col(dcc.Input(type="password", id="password-input"), width=9)
+                            ], className="mb-3"),
+
+                            dbc.Row([
+                                dbc.Label("DataBase Name:", width=3),
+                                dbc.Col(dcc.Input(type="text", id="db-name-input"), width=9)
+                            ], className="mb-3", style={"align-items": "center"}),
+
+                            dbc.Row([
+                                dbc.Label("Search Table:", width=3),
+                                dbc.Col(dcc.Input(type="text", id="search-input"), width=9)
+                            ], className="mb-3", style={"align-items": "center"}),
+
+
+                        ]),
+                    ),
+                    dbc.ModalFooter(
+                        dbc.Button("Submit", id="submit-db", className="ms-auto", n_clicks=0)
+                    ),
+                ],
+                id="db-modal",
+                is_open=False,
+                ),
                 dbc.Button( "Import from URL", 
                             id="url-button",
                             style={
@@ -117,7 +165,7 @@ sidebar = html.Div(
                 ],
                 id="url-modal",
                 is_open=False,
-            ),
+                ),
             ],
             vertical=True,
         ),
@@ -142,7 +190,7 @@ def toggle_csv_modal(open_clicks, close_clicks, is_open):
               State('upload-in-modal', 'filename'),
               State('upload-in-modal', 'last_modified'),
               prevent_initial_call=True)
-def update_output(contents, filename, date):
+def update_csv_output(contents, filename, date):
     content_type, content_string = contents.split(',')
 
     decoded = base64.b64decode(content_string)
@@ -156,13 +204,46 @@ def update_output(contents, filename, date):
             df = pd.read_excel(io.BytesIO(decoded))
     except Exception as e:
         print(e)
-        return html.Div([
+        return no_update, html.Div([
             'There was an error processing this file.'
         ])
 
     return df.to_dict('records'), f'File "{filename}" uploaded successfully!'
 
+@callback(
+    Output("db-modal", "is_open"),
+    Input("db-button", "n_clicks"),
+    Input("submit-db", "n_clicks"),
+    State("db-modal", "is_open"),
+)
+def toggle_database_modal(open_clicks, submit_clicks, is_open):
+    if open_clicks or submit_clicks:
+        return not is_open
+    return is_open
 
+# Get data from database
+@callback(
+    Output("uploaded-data-store", "data", allow_duplicate=True),
+    Input("submit-db", "n_clicks"),
+    State("host-input", "value"),
+    State("port-input", "value"),
+    State("username-input", "value"),
+    State("password-input", "value"),
+    State("db-name-input", "value"),
+    State("search-input", "value"),
+    prevent_initial_call=True
+)
+def update_database_output(n_clicks, host, port, username, password, db_name, table):
+    with lock:
+        try:
+            if n_clicks:
+                connection_string = f'mysql+pymysql://{username}:{password}@{host}:{port}/{db_name}'
+                engine = create_engine(connection_string)
+                df = pd.read_sql(f"SELECT * FROM {table};", con=engine)
+                return df.to_dict('records')
+        except Exception as e:
+            print(e)
+            return no_update
 
 @callback(
     Output("url-modal", "is_open"),
@@ -182,11 +263,12 @@ def toggle_url_modal(open_clicks, submit_clicks, is_open):
     State("url-input", "value"),
     prevent_initial_call=True
 )
-def check_url(n_clicks, url):
+def update_url_output(n_clicks, url):
     with lock:
         try:
             if n_clicks:
                 df = pd.read_csv(url)
+                print(df.columns)
                 return df.to_dict('records')
         except Exception as e:
             print(e)

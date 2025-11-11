@@ -9,7 +9,7 @@ app = dash.Dash(__name__, external_stylesheets=[dbc.themes.BOOTSTRAP])
 
 # 初始标签数据
 initial_sheets = [
-    {"id": "sheet-1", "label": "sheet1", "x": "column_x", "y": "column_y", "graph_type": "histogram"},
+    {"id": "sheet-1", "label": "sheet1"},
 ]
 
 workshop = dbc.Container([
@@ -17,6 +17,9 @@ workshop = dbc.Container([
     
     # 存储当前活动标签ID
     dcc.Store(id="active-tab-store", data=initial_sheets[0]["id"] if initial_sheets else "add-tab-button"),
+    
+    # 存储每个sheet的图表设置
+    dcc.Store(id="chart-settings-store", data={}),
     
     html.H1("WorkSpace", className="mb-3"),
     
@@ -30,7 +33,7 @@ workshop = dbc.Container([
     ], className="mt-3")
 ], fluid=True, id="app-layout-container")
 
-def create_sheet_tools(data):
+def create_sheet_tools(data, x_axis: str, y_axis: str, graph_type="histogram"):
     sheet_tools = dbc.Container(
         [
             dbc.Row(
@@ -46,21 +49,21 @@ def create_sheet_tools(data):
                                     {"label": "散点图", "value": "scatter"},
                                     {"label": "折线图", "value": "line"},
                                 ],
-                                value="histogram",
+                                value=graph_type,
                                 inline=False,
                             ),
                             html.Label("X轴"),
                             dbc.RadioItems(
                                 id="x-axis-radio",
                                 options={},
-                                value="column_a",
+                                value=x_axis,
                                 inline=False,
                             ),
                             html.Label("Y轴"),
                             dbc.RadioItems(
                                 id="y-axis-radio",
                                 options={},
-                                value="column_x",
+                                value=y_axis,
                                 inline=False,
                             ),
                         ],
@@ -79,32 +82,69 @@ def create_sheet_tools(data):
     return sheet_tools
 
 @callback(
+    Output("chart-settings-store", "data"),
     Output("x-axis-radio", "options"),
     Output("y-axis-radio", "options"),
-    Input("uploaded-data-store", "data")
+    Input("uploaded-data-store", "data"),
 )
 def update_axis_options(data):
     if not data:
-        return [], []
+        print("No data available to update axis options.")
+        return {}, [], [] # 返回空字典作为默认chart_settings，以及空选项列表
     
     df = pd.DataFrame.from_dict(data)
-    columns = df.head()
+    columns = df.columns.tolist() # 使用列名列表
     
     options = [{"label": col, "value": col} for col in columns]
+    print(f"Axis options updated: {options}")
+    # 初始化一个默认的chart_settings，用于第一个标签或没有活动标签时
+    # 注意：update_graph期望chart_settings是一个字典，键是tab_id
+    # 但这里我们只提供一个默认的设置，后续在update_graph中会按tab_id存储
+    # 为了简单起见，我们先创建一个包含默认设置的字典
+    # 实际上，update_graph会处理每个tab的设置存储
+    # 这里我们只需要确保x_axis和y_axis有默认值
+    default_x_axis = columns[0] if len(columns) > 0 else None
+    default_y_axis = columns[1] if len(columns) > 1 else None
     
-    return options, options
+    # 初始化chart_settings_store为一个空字典，后续由update_graph填充
+    # 但为了确保x-axis-radio和y-axis-radio有初始值，我们提供一个默认的active_tab设置
+    # 假设初始active_tab是 "data-source-tab" 或第一个sheet
+    # 由于active_tab是动态的，这里我们只提供一个通用结构
+    # 更好的做法是在display_page或initialize_workshop中设置一个初始的chart_settings
+    # 暂时，我们创建一个带有默认设置的通用条目，或者让update_graph处理
+    # 为了简单，我们返回一个包含默认设置的字典，键为"default"
+    # 这不是最理想的，但可以作为一个起点
+    chart_settings = {
+        "default": { # 使用"default"作为临时的键
+            "graph_type": "histogram",
+            "x_axis": default_x_axis,
+            "y_axis": default_y_axis
+        }
+    }
+    return chart_settings, options, options
 
 @callback(
-    Output("tabs-store", "data"),
+    Output("chart-settings-store", "data", allow_duplicate=True),
     Output("controls-and-graph", "figure"),
     Input("graph-type-radio", "value"),
     Input("x-axis-radio", "value"),
     Input("y-axis-radio", "value"),
     State("uploaded-data-store", "data"),
+    State("chart-settings-store", "data"),
+    State("dynamic-tabs", "active_tab"),
+    prevent_initial_call=True
 )
-def update_graph(graph_type, x_axis, y_axis, data):
+def update_graph(graph_type, x_axis, y_axis, data, chart_settings, active_tab):
     if not data:
         return dash.no_update
+    
+    # 更新当前sheet的图表设置
+    updated_settings = chart_settings.copy()
+    updated_settings[active_tab] = {
+        "graph_type": graph_type,
+        "x_axis": x_axis,
+        "y_axis": y_axis
+    }
     
     df = pd.DataFrame.from_dict(data)
     
@@ -122,7 +162,7 @@ def update_graph(graph_type, x_axis, y_axis, data):
     else:
         fig = {}
     
-    return fig
+    return updated_settings, fig
 
 @callback(
     Output("tabs-container", "children"),
@@ -172,9 +212,10 @@ def initialize_workshop(sheets_data, active_tab_id):
     Output("tab-content-area", "children"),
     Input("dynamic-tabs", "active_tab"),
     State("tabs-store", "data"),
-    State("uploaded-data-store", "data")
+    State("uploaded-data-store", "data"),
+    State("chart-settings-store", "data")
 )
-def update_tab_content(active_tab, sheets_data, uploaded_data):
+def update_tab_content(active_tab, sheets_data, uploaded_data, chart_settings):
     """根据当前活动标签更新内容区域"""
     # 如果是 Data Source 标签，显示数据源内容
     if active_tab == "data-source-tab":
@@ -184,7 +225,18 @@ def update_tab_content(active_tab, sheets_data, uploaded_data):
     for tab in sheets_data:
         if tab["id"] == active_tab:
             # 如果是sheet标签，显示图表工具和图表
-            return create_sheet_tools(uploaded_data)
+            # 从chart-settings-store中读取当前sheet的图表设置
+            current_tab_settings = chart_settings.get(active_tab, chart_settings.get("default", {}))
+            
+            x_axis = current_tab_settings.get("x_axis")
+            y_axis = current_tab_settings.get("y_axis")
+            graph_type = current_tab_settings.get("graph_type", "histogram") # 提供默认值
+            
+            # 检查是否有上传的数据
+            if not uploaded_data:
+                return html.Div("请先上传数据以使用此标签。")
+            
+            return create_sheet_tools(uploaded_data, x_axis, y_axis, graph_type)
     
 
 @callback(
