@@ -35,18 +35,18 @@ sidebar = html.Div(
         dbc.ButtonGroup(
             [
                 # Button of CSV to trigger modals
-                dbc.Button( "Import from CSV",
-                            id='csv-button',
-                            style={
-                                'width': '100%',
-                                'height': '60px',
-                                'lineHeight': '60px',
-                                'borderWidth': '1px',
-                                'borderStyle': 'dashed',
-                                'borderRadius': '5px',
-                                'textAlign': 'center',
-                                'margin': '10px'
-                            },),
+        dbc.Button( "Import from CSV",
+                    id='csv-button',
+                    style={
+                        'width': '100%',
+                        'height': '60px',
+                        'lineHeight': '60px',
+                        'borderWidth': '1px',
+                        'borderStyle': 'dashed',
+                        'borderRadius': '5px',
+                        'textAlign': 'center',
+                        'margin': '10px'
+                        }),
                 dbc.Modal(
                 [
                     dbc.ModalHeader("Upload File"),
@@ -113,7 +113,7 @@ sidebar = html.Div(
                             ], className="mb-3"),
 
                             dbc.Row([
-                                dbc.Label("DataBase Name:", width=3),
+                                dbc.Label("Database Name:", width=3),
                                 dbc.Col(dcc.Input(type="text", id="db-name-input"), width=9)
                             ], className="mb-3", style={"align-items": "center"}),
 
@@ -176,14 +176,14 @@ sidebar = html.Div(
 @callback(
     Output("csv-modal", "is_open"),
     Input("csv-button", "n_clicks"),
-    Input("close-modal", "n_clicks"),
+    Input("submit-csv", "n_clicks"),
     State("csv-modal", "is_open")
 )
 def toggle_csv_modal(open_clicks, close_clicks, is_open):
     if open_clicks or close_clicks:
         return not is_open
     return is_open
-# Get csv file content
+# Get CSV file content
 @callback(Output('uploaded-data-store', 'data', allow_duplicate=True),
           Output('upload-text', 'children'),
               Input('upload-in-modal', 'contents'),
@@ -191,6 +191,10 @@ def toggle_csv_modal(open_clicks, close_clicks, is_open):
               State('upload-in-modal', 'last_modified'),
               prevent_initial_call=True)
 def update_csv_output(contents, filename, date):
+
+    if contents is None:
+        return no_update, "No file uploaded"
+    
     content_type, content_string = contents.split(',')
 
     decoded = base64.b64decode(content_string)
@@ -207,6 +211,7 @@ def update_csv_output(contents, filename, date):
         return no_update, html.Div([
             'There was an error processing this file.'
         ])
+    print(df.columns)
 
     return df.to_dict('records'), f'File "{filename}" uploaded successfully!'
 
@@ -256,7 +261,7 @@ def toggle_url_modal(open_clicks, submit_clicks, is_open):
         return not is_open
     return is_open
 
-# Get url file content
+# Get URL file content
 @callback(
     Output("uploaded-data-store", "data", allow_duplicate=True),
     Input("submit-url", "n_clicks"),
