@@ -9,17 +9,17 @@ from components.import_file import sidebar, SIDEBAR_STYLE
 from components.workshop import workshop
 import uuid # Required for test.py logic
 
-# 创建示例数据 (原始数据保留，尽管在test.py应用中未直接使用)
+# Create sample data (original data is retained, although not directly used in test.py application)
 df = pd.read_csv('https://raw.githubusercontent.com/plotly/datasets/master/gapminder2007.csv')
 
-# 初始化主应用
+# Initialize main application
 app = Dash(__name__, external_stylesheets=[dbc.themes.BOOTSTRAP])
 
 default_content = dbc.Container([
     html.Div([sidebar], id="sidebar-div"),
     html.Div([
-        html.H3(children="初始标题"),
-        html.P("请使用左侧边栏导入数据以开始分析。"),
+        html.H3(children="Initial Title"),
+        html.P("Please use the sidebar to import data to start the analysis."),
     ], style={"margin-left": "18rem", "padding": "2rem 1rem"}, id="content-div"),
 ], fluid=True, id="main-container")
 
@@ -27,10 +27,10 @@ workshop_content = dbc.Container([
     workshop
 ], fluid=True, id="workshop-container")
 
-# 应用布局
+# Application layout
 app.layout = html.Div([
-    dcc.Location(id='url', refresh=True),  # refresh=True 会完全刷新页面
-    dcc.Store(id="uploaded-data-store", storage_type="session"),     # 用于在页面间共享数据
+    dcc.Location(id='url', refresh=True),  # refresh=True will completely refresh the page
+    dcc.Store(id="uploaded-data-store", storage_type="session"),     # Used to share data between pages
     html.Div(id='page-content')
 ])
 
@@ -38,15 +38,15 @@ app.layout = html.Div([
 @app.callback(
     Output('url', 'pathname'),
     Input('uploaded-data-store', 'data'),
-    State('submit-csv', 'n_clicks'),
-    State('submit-db', 'n_clicks'),
-    State('submit-url', 'n_clicks'),
+    Input('submit-csv', 'n_clicks'),
+    Input('submit-db', 'n_clicks'),
+    Input('submit-url', 'n_clicks'),
     prevent_initial_call=True
 )
 def redirect_when_data_ready(data, csv_clicks, db_clicks, url_clicks):
-    # 如果有数据并且有任一按钮被点击过，则跳转
+    # If there is data and any button has been clicked, then redirect
     if data and len(data) > 0 and (csv_clicks or db_clicks or url_clicks):
-        print(f"数据已准备就绪，跳转到处理页面，数据长度: {len(data)}")
+        print(f"Data is ready, redirecting to processing page, data length: {len(data)}")
         return '/process'
     
     return dash.no_update
@@ -64,6 +64,6 @@ def display_page(pathname):
         return default_content
 
 
-# 运行应用
+# Run application
 if __name__ == '__main__':
     app.run(debug=True)

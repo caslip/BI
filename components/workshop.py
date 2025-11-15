@@ -7,7 +7,7 @@ import plotly.express as px
 
 app = dash.Dash(__name__, external_stylesheets=[dbc.themes.BOOTSTRAP])
 
-# 初始标签数据
+# Initial tab data
 initial_sheets = [
     {"id": "sheet-1", "label": "sheet1"},
 ]
@@ -15,65 +15,94 @@ initial_sheets = [
 workshop = dbc.Container([
     dcc.Store(id="tabs-store", data=initial_sheets),
     
-    # 存储当前活动标签ID
+    # Store current active tab ID
     dcc.Store(id="active-tab-store", data=initial_sheets[0]["id"] if initial_sheets else "add-tab-button"),
     
-    # 存储每个sheet的图表设置
+    # Store chart settings for each sheet
     dcc.Store(id="chart-settings-store", data={}),
     
     html.H1("WorkSpace", className="mb-3"),
     
-    # Tab 容器
+    # Tab container
     html.Div(id="tabs-container"),
     
-    # 当前活动标签内容显示区域
+    # Current active tab content display area
     dbc.Card([
-        dbc.CardHeader("标签内容"),
+        dbc.CardHeader("Tab Content"),
         dbc.CardBody(id="tab-content-area")
     ], className="mt-3")
 ], fluid=True, id="app-layout-container")
 
-def create_sheet_tools(data, x_axis: str, y_axis: str, graph_type="histogram"):
+def create_sheet_tools(data, x_axis: str | None, y_axis: str | None, filter: dict | None, graph_type="histogram"):
     sheet_tools = dbc.Container(
         [
             dbc.Row(
                 [
                     dbc.Col(
                         [
-                            html.Label("图类型"),
+                            html.Label("Graph Type"),
                             dbc.RadioItems(
                                 id="graph-type-radio",
                                 options=[
-                                    {"label": "直方图", "value": "histogram"},
-                                    {"label": "饼图", "value": "pie"},
-                                    {"label": "散点图", "value": "scatter"},
-                                    {"label": "折线图", "value": "line"},
+                                    {"label": "Histogram", "value": "histogram"},
+                                    {"label": "Pie Chart", "value": "pie"},
+                                    {"label": "Scatter Plot", "value": "scatter"},
+                                    {"label": "Line Chart", "value": "line"},
                                 ],
                                 value=graph_type,
                                 inline=False,
                             ),
-                            html.Label("X轴"),
+                            html.Label("X-Axis"),
                             dbc.RadioItems(
                                 id="x-axis-radio",
-                                options={},
+                                options={
+                                    df_col: df_col for df_col in pd.DataFrame.from_dict(data).columns
+                                },
                                 value=x_axis,
                                 inline=False,
                             ),
-                            html.Label("Y轴"),
+                            html.Label("Y-Axis"),
                             dbc.RadioItems(
                                 id="y-axis-radio",
-                                options={},
+                                options={
+                                    df_col: df_col for df_col in pd.DataFrame.from_dict(data).columns
+                                },
                                 value=y_axis,
                                 inline=False,
                             ),
+                            
                         ],
-                        width=3,
+                        width=2,
+                    ),
+                    dbc.Col(
+                        [
+                            dbc.Form(
+                                [
+                                    dbc.Row(
+                                        [
+                                            dbc.Label("Date Filter"),
+                                            dcc.DatePickerRange(
+                                                id='date-picker-range',
+                                                start_date_placeholder_text='Start Date',
+                                                end_date_placeholder_text='End Date',
+                                                display_format='YYYY-MM-DD',
+                                                minimum_nights=0,
+                                                show_outside_days=True,
+                                                start_date=filter.get('start_date') if filter else None,
+                                                end_date=filter.get('end_date') if filter else None
+                                            )
+                                        ]
+                                    )
+                                ]
+                            )
+                        ],
+                        width=2,
                     ),
                     dbc.Col(
                         [
                             dcc.Graph(figure={}, id='controls-and-graph')
                         ],
-                        width=9,
+                        width=8,
                     )
                 ]
             )
@@ -83,70 +112,66 @@ def create_sheet_tools(data, x_axis: str, y_axis: str, graph_type="histogram"):
 
 @callback(
     Output("chart-settings-store", "data"),
-    Output("x-axis-radio", "options"),
-    Output("y-axis-radio", "options"),
-    Input("uploaded-data-store", "data"),
+    Input("x-axis-radio", "value"),
+    Input("y-axis-radio", "value"),
+    State("chart-settings-store", "data"),
+    State("active-tab-store", "data"),
 )
-def update_axis_options(data):
-    if not data:
-        print("No data available to update axis options.")
-        return {}, [], [] # 返回空字典作为默认chart_settings，以及空选项列表
+def update_axis_options(x_axis, y_axis, chart_settings, active_tab):
+    if not chart_settings:
+        chart_settings = {}
     
-    df = pd.DataFrame.from_dict(data)
-    columns = df.columns.tolist() # 使用列名列表
-    
-    options = [{"label": col, "value": col} for col in columns]
-    print(f"Axis options updated: {options}")
-    # 初始化一个默认的chart_settings，用于第一个标签或没有活动标签时
-    # 注意：update_graph期望chart_settings是一个字典，键是tab_id
-    # 但这里我们只提供一个默认的设置，后续在update_graph中会按tab_id存储
-    # 为了简单起见，我们先创建一个包含默认设置的字典
-    # 实际上，update_graph会处理每个tab的设置存储
-    # 这里我们只需要确保x_axis和y_axis有默认值
-    default_x_axis = columns[0] if len(columns) > 0 else None
-    default_y_axis = columns[1] if len(columns) > 1 else None
-    
-    # 初始化chart_settings_store为一个空字典，后续由update_graph填充
-    # 但为了确保x-axis-radio和y-axis-radio有初始值，我们提供一个默认的active_tab设置
-    # 假设初始active_tab是 "data-source-tab" 或第一个sheet
-    # 由于active_tab是动态的，这里我们只提供一个通用结构
-    # 更好的做法是在display_page或initialize_workshop中设置一个初始的chart_settings
-    # 暂时，我们创建一个带有默认设置的通用条目，或者让update_graph处理
-    # 为了简单，我们返回一个包含默认设置的字典，键为"default"
-    # 这不是最理想的，但可以作为一个起点
-    chart_settings = {
-        "default": { # 使用"default"作为临时的键
-            "graph_type": "histogram",
-            "x_axis": default_x_axis,
-            "y_axis": default_y_axis
-        }
-    }
-    return chart_settings, options, options
-
+    try:
+        # Update chart settings for the current active tab
+        if active_tab not in chart_settings:
+            chart_settings[active_tab] = {}
+        
+        chart_settings[active_tab]["x_axis"] = x_axis
+        chart_settings[active_tab]["y_axis"] = y_axis
+        
+        print(f"Updated settings for tab {active_tab}: {chart_settings[active_tab]}")
+        return chart_settings
+        
+    except Exception as e:
+        print(f"Error updating axis options: {e}")
+        return chart_settings
+        
 @callback(
     Output("chart-settings-store", "data", allow_duplicate=True),
     Output("controls-and-graph", "figure"),
     Input("graph-type-radio", "value"),
     Input("x-axis-radio", "value"),
     Input("y-axis-radio", "value"),
+    Input("date-picker-range", "start_date"),
+    Input("date-picker-range", "end_date"),
     State("uploaded-data-store", "data"),
     State("chart-settings-store", "data"),
     State("dynamic-tabs", "active_tab"),
     prevent_initial_call=True
 )
-def update_graph(graph_type, x_axis, y_axis, data, chart_settings, active_tab):
+def update_graph(graph_type, x_axis, y_axis, start_date, end_date, data, chart_settings, active_tab):
     if not data:
         return dash.no_update
     
-    # 更新当前sheet的图表设置
+    # Update chart settings for the current sheet
     updated_settings = chart_settings.copy()
     updated_settings[active_tab] = {
         "graph_type": graph_type,
         "x_axis": x_axis,
-        "y_axis": y_axis
+        "y_axis": y_axis,
+        "filter": {"start_date": start_date, "end_date": end_date}
     }
     
     df = pd.DataFrame.from_dict(data)
+    
+    # Filter data if date filter is applied
+    if start_date and end_date:
+        # Assuming there is a column named 'date' in the data
+        # If the actual date column name is different, it needs to be replaced
+        if 'date' in df.columns:
+            df = df[(df['date'] >= start_date) & (df['date'] <= end_date)]
+        else:
+            print("Warning: 'date' column not found in data. Date filtering will not be applied.")
     
     if x_axis not in df.columns or (graph_type != "pie" and y_axis not in df.columns):
         return dash.no_update
@@ -171,7 +196,7 @@ def update_graph(graph_type, x_axis, y_axis, data, chart_settings, active_tab):
 )
 def initialize_workshop(sheets_data, active_tab_id):
     
-    # 创建常规标签
+    # Create regular tabs
     tab_components = []
     tab_components.append(
         dbc.Tab(
@@ -207,7 +232,7 @@ def initialize_workshop(sheets_data, active_tab_id):
     )
 
 
-# 处理标签内容显示
+    # Handle tab content display
 @callback(
     Output("tab-content-area", "children"),
     Input("dynamic-tabs", "active_tab"),
@@ -216,60 +241,74 @@ def initialize_workshop(sheets_data, active_tab_id):
     State("chart-settings-store", "data")
 )
 def update_tab_content(active_tab, sheets_data, uploaded_data, chart_settings):
-    """根据当前活动标签更新内容区域"""
-    # 如果是 Data Source 标签，显示数据源内容
+    """Update content area based on the current active tab"""
+    # If it's the Data Source tab, display data source content
     if active_tab == "data-source-tab":
         return create_data_source(uploaded_data)
     
-    # 查找当前活动标签的内容
+    # Find the content of the current active tab
     for tab in sheets_data:
         if tab["id"] == active_tab:
-            # 如果是sheet标签，显示图表工具和图表
-            # 从chart-settings-store中读取当前sheet的图表设置
-            current_tab_settings = chart_settings.get(active_tab, chart_settings.get("default", {}))
+            # If it's a sheet tab, display chart tools and graph
+            # Read current sheet's chart settings from chart-settings-store
+            current_tab_settings = chart_settings.get(active_tab, {})
             
-            x_axis = current_tab_settings.get("x_axis")
-            y_axis = current_tab_settings.get("y_axis")
-            graph_type = current_tab_settings.get("graph_type", "histogram") # 提供默认值
-            
-            # 检查是否有上传的数据
+            # Check if there is uploaded data
             if not uploaded_data:
-                return html.Div("请先上传数据以使用此标签。")
+                return html.Div("Please upload data first to use this tab.")
             
-            return create_sheet_tools(uploaded_data, x_axis, y_axis, graph_type)
+            df = pd.DataFrame.from_dict(uploaded_data)
+            columns = df.columns.tolist()
+            
+            # Get current settings, or use defaults if not available
+            x_axis = current_tab_settings.get("x_axis", columns[0] if columns else None)
+            y_axis = current_tab_settings.get("y_axis", columns[1] if len(columns) > 1 else None)
+            filter = current_tab_settings.get("filter")
+            filter_value = current_tab_settings.get("filter_value")
+            graph_type = current_tab_settings.get("graph_type", "histogram")
+            
+            # Ensure x_axis and y_axis are valid column names
+            if x_axis not in columns:
+                x_axis = columns[0] if columns else None
+            if y_axis not in columns and len(columns) > 1:
+                y_axis = columns[1]
+            elif y_axis not in columns and len(columns) == 1:
+                y_axis = None
+            
+            return create_sheet_tools(uploaded_data, x_axis, y_axis, filter, graph_type)
     
 
 @callback(
-    Output("data-source-tab", "children"),  # 这个回调实际上不需要，因为数据显示在tab-content-area中
+    Output("data-source-tab", "children"),  # This callback is actually not needed as data is displayed in tab-content-area
     Input("dynamic-tabs", "active_tab"),
     State("uploaded-data-store", "data") 
 )
 def create_data_source(data):
-    """创建数据源表格显示组件"""
+    """Create data source table display component"""
     if not data:
         print("No data available for display.")
-        return html.Div("没有上传的数据。")
+        return html.Div("No Uploaded Data")
     
     try:
-        # 直接使用上传的数据，确保类型正确
+        # Directly use the uploaded data, ensuring type correctness
         formatted_data = []
         for row in data:
             formatted_row = {}
             for key, value in row.items():
-                # 确保键是字符串
+                # Ensure key is a string
                 str_key = str(key)
-                # 确保值是基本类型
+                # Ensure value is a basic type
                 if isinstance(value, (int, float, str, bool)):
                     formatted_row[str_key] = value
                 else:
                     formatted_row[str_key] = str(value)
             formatted_data.append(formatted_row)
         
-        # 获取所有列名
+        # Get all column names
         columns = list(formatted_data[0].keys()) if formatted_data else []
         
         return html.Div([
-            html.H4("上传的数据"),
+            html.H4("Uploaded Data Preview"),
             dash_table.DataTable(
                 data=formatted_data,
                 columns=[{'name': col, 'id': col} for col in columns],
@@ -281,11 +320,11 @@ def create_data_source(data):
         ])
     except Exception as e:
         return html.Div([
-            html.H4("数据错误"),
-            html.P(f"无法显示数据: {str(e)}")
+            html.H4("Data Error"),
+            html.P(f"Failed to display data: {str(e)}")
         ])
     
-# 处理添加新标签
+# Handle adding new tabs
 @callback(
     Output("tabs-store", "data"),
     Output("active-tab-store", "data"),
@@ -294,36 +333,35 @@ def create_data_source(data):
     prevent_initial_call=True
 )
 def handle_add_tab(active_tab, sheets_data):
-    # 只有当点击的是 + 标签时才添加新标签
+    # Only add a new tab when the + button is clicked
     if active_tab == "add-tab-button":
-        # 计算当前已有的 sheet 标签的数量
+        # Calculate the number of existing sheet tabs
         sheet_count = 0
         for tab in sheets_data:
             if tab["label"].startswith("sheet"):
                 sheet_count += 1
         
-        # 生成新的标签名称
+        # Generate new tab name
         new_sheet_name = f"sheet{sheet_count + 1}"
         
-        # 生成新的标签 ID
+        # Generate new tab ID
         new_tab_id = f"tab-{str(uuid.uuid4())[:8]}"
         
-        # 创建新标签数据
+        # Create new tab data
         new_tab = {
             "id": new_tab_id,
             "label": new_sheet_name,
-            "content": f"这是{new_sheet_name}标签的内容"
         }
         
-        # 将新标签插入到 + 标签之前
+        # Insert the new tab before the + tab
         updated_tabs = sheets_data + [new_tab]
         
-        # 激活新添加的标签
+        # Activate the newly added tab
         return updated_tabs, new_tab_id
     
     return dash.no_update, dash.no_update
 
-# 处理关闭标签
+# Handle closing tabs
 @callback(
     Output("tabs-store", "data", allow_duplicate=True),
     Output("active-tab-store", "data", allow_duplicate=True),
@@ -337,20 +375,20 @@ def handle_close_tab(close_clicks, sheets_data, active_tab):
     if not ctx.triggered:
         return dash.no_update, dash.no_update
     
-    # 获取被点击的关闭按钮对应的标签 ID
+    # Get the ID of the tab whose close button was clicked
     triggered_id = ctx.triggered[0]["prop_id"]
     if "tab_id" in triggered_id:
         import json
         tab_id_to_close = json.loads(triggered_id.split(".")[0])["tab_id"]
         
-        # 检查要关闭的标签是否是固定标签（数据源或sheet1）
+        # Check if the tab to be closed is a fixed tab (Data Source or sheet1)
         if tab_id_to_close in ["tab-1", "tab-2"]:
             return dash.no_update, dash.no_update
         
-        # 过滤掉要关闭的标签
+        # Filter out the tab to be closed
         updated_tabs = [tab for tab in sheets_data if tab["id"] != tab_id_to_close]
         
-        # 如果关闭的是当前活动标签，则激活第一个标签或+标签
+        # If the closed tab was the active one, activate the first tab or the + tab
         new_active_tab = active_tab
         if active_tab == tab_id_to_close:
             if updated_tabs:
@@ -362,19 +400,19 @@ def handle_close_tab(close_clicks, sheets_data, active_tab):
     
     return dash.no_update, dash.no_update
 
-# 示例回调：将整个应用布局作为另一个容器的子元素
+# Example callback: Embed the entire app layout as a child of another container
 @callback(
     Output("outer-container", "children"),
     Input("trigger-button", "n_clicks")
 )
 def embed_app_in_outer_container(n_clicks):
     if n_clicks:
-        # 返回应用布局的容器
+        # Return the app layout container
         return app.layout
     else:
-        # 初始状态或未点击时显示提示信息
+        # In initial state or when not clicked, show a prompt message
         return html.Div([
-            dbc.Button("加载应用", id="trigger-button", color="primary"),
+            dbc.Button("Load App", id="trigger-button", color="primary"),
             html.Div(id="app-container")
         ])
 
