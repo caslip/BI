@@ -1,103 +1,118 @@
-# EasyBI - Business Intelligence Dashboard
+# BI - Business Intelligence Dashboard
 
-EasyBI is a web-based business intelligence dashboard application built with Python and Dash. It allows users to import, visualize, and analyze data through an intuitive interface with various chart types and data filtering options.
+BI is a web-based business intelligence dashboard application built with Python and Dash. It allows users to import, visualize, and analyze data through an intuitive interface with various chart types and interactive filtering capabilities.
 
 ## Features
 
-- **Data Import**: Import data from multiple sources
-  - CSV files
-  - MySQL databases
-  - URLs (direct CSV links)
-- **Data Visualization**: Create various types of charts
-  - Histogram
-  - Pie Chart
-  - Scatter Plot
-  - Line Chart
-- **Interactive Tabs**: Create multiple analysis sheets
-- **Data Filtering**: Filter data by date ranges
-- **Responsive Design**: Built with Bootstrap for a responsive layout
+- **Data Import**: Seamlessly import data from various sources.
+  - CSV file uploads
+  - MySQL database connections
+  - Direct CSV URLs
+- **Interactive Data Visualization**: Create and customize a variety of charts.
+  - Histograms
+  - Pie Charts
+  - Scatter Plots
+  - Line Charts
+- **Multi-Tab Workspace**: Organize your analysis into separate, manageable sheets.
+- **Dynamic Data Filtering**: Apply filters to specific columns to refine your data views.
+- **Responsive UI**: Built with Dash Bootstrap Components for a consistent and responsive experience.
+- **Automatic Chart Updates**: Charts automatically re-render when settings or filters are changed.
+- **Fallback to Table View**: When data is filtered out, a table is displayed instead of an empty chart.
 
 ## Installation
 
-1. Clone the repository:
+1. **Clone the repository:**
    ```bash
    git clone https://github.com/caslip/BI.git
    cd BI
    ```
 
-2. Create a virtual environment (recommended):
+2. **Create a virtual environment (recommended):**
    ```bash
    python -m venv venv
-   source venv\Scripts\activate
+   # On Windows:
+   venv\Scripts\activate
+   # On macOS/Linux:
+   source venv/bin/activate
    ```
 
-3. Install the required dependencies:
+3. **Install the required dependencies:**
    ```bash
    pip install -r requirements.txt
    ```
 
 ## Usage
 
-1. Run the application:
+1. **Run the application:**
    ```bash
    python app.py
    ```
 
-2. Open your web browser and navigate to `http://localhost:8050`
+2. **Open your web browser** and navigate to `http://localhost:8050`.
 
-3. Import data using the sidebar:
-   - Click "Import from CSV" to upload a CSV file
-   - Click "Import from Database" to connect to a MySQL database
-   - Click "Import from URL" to load data from a CSV URL
+3. **Import data:**
+   - Use the "Data Source" tab to import data.
+   - Choose from CSV upload, MySQL database, or a direct CSV URL.
 
-4. After importing data, you'll be redirected to the analysis workspace where you can:
-   - View your data in the "Data Source" tab
-   - Create new tabs for additional analysis
-   - Select different chart types and configure axes
-   - Apply date filters to your data
+4. **Analyze your data:**
+   - After data import, you'll land in the analysis workspace.
+   - **Data Source Tab**: View and manage your imported data.
+   - **Sheet Tabs**: Create new tabs for different analysis perspectives.
+     - Select chart types (Histogram, Pie, Scatter, Line).
+     - Configure X and Y axes using dropdown menus.
+     - Apply filters by selecting a column and entering a filter value.
+   - **Dynamic Updates**: Charts and tables update automatically as you change filters or chart settings.
+   - **Empty Data Handling**: If a filter results in no data, a table showing the data structure will be displayed.
 
 ## Project Structure
 
 ```
 BI/
-├── app.py                 # Main application file
+├── app.py                 # Main Dash application entry point
 ├── components/
-│   ├── import_file.py    # Data import components
-│   └── workshop.py       # Analysis workspace components
-├── uploads/              # Directory for uploaded files
-├── requirements.txt     # Project dependencies
+│   ├── import_file.py    # Handles data import logic and UI
+│   └── workshop.py       # Manages the analysis workspace, charts, and tabs
+├── uploads/              # Stores temporarily uploaded files
+├── requirements.txt     # Lists all Python dependencies
 └── README.md            # This file
 ```
 
-## Dependencies
+## Key Dependencies
 
-- Dash
-- Dash Bootstrap Components
-- Pandas
-- Plotly
-- SQLAlchemy
-- PyMySQL (for MySQL connectivity)
-- Flask
-- OpenPyXL (for Excel file support)
+- **Dash**: The core web framework for building the application.
+- **Dash Bootstrap Components (dbc)**: For responsive and styled UI components.
+- **Pandas**: For data manipulation and analysis.
+- **Plotly**: For creating interactive and dynamic charts.
+- **SQLAlchemy & PyMySQL**: For MySQL database connectivity.
+- **Flask**: Underlying WSGI application server for Dash.
+- **OpenPyXL**: For potential future Excel file support.
 
 ## Configuration
 
-For MySQL database connections, you'll need to provide on the website:
-- Host (default: localhost)
-- Port (default: 3306)
-- Username
-- Password
-- Database name
-- Table name
+- **MySQL Connections**: When importing from a MySQL database, you will be prompted to enter:
+  - Host (default: `localhost`)
+  - Port (default: `3306`)
+  - Username
+  - Password
+  - Database name
+  - Table name
 
 ## License
 
-This project is licensed under the MIT License.
+This project is licensed under the MIT License. See the `LICENSE` file for more details.
 
 ## Contributing
 
-Contributions are welcome! Please feel free to submit a Pull Request.
+We welcome contributions! Please follow these steps:
+1. Fork the repository.
+2. Create a new branch (`git checkout -b feature/amazing-feature`).
+3. Commit your changes (`git commit -m 'Add some amazing feature'`).
+4. Push to the branch (`git push origin feature/amazing-feature`).
+5. Open a Pull Request.
 
 ## Support
 
-If you encounter any issues or have questions, please open an issue in the GitHub repository.
+If you encounter any issues or have questions, please don't hesitate to:
+- Check the existing issues on GitHub.
+- Open a new issue with a detailed description of your problem.
+- For general inquiries, you can also reach out via the GitHub repository discussions.
