@@ -9,11 +9,8 @@ from components.import_file import sidebar, SIDEBAR_STYLE
 from components.workshop import workshop
 import uuid # Required for test.py logic
 
-# Create sample data (original data is retained, although not directly used in test.py application)
-df = pd.read_csv('https://raw.githubusercontent.com/plotly/datasets/master/gapminder2007.csv')
-
 # Initialize main application
-app = Dash(__name__, external_stylesheets=[dbc.themes.BOOTSTRAP])
+app = Dash(__name__, external_stylesheets=[dbc.themes.BOOTSTRAP], suppress_callback_exceptions=True)
 
 default_content = dbc.Container([
     html.Div([sidebar], id="sidebar-div"),
@@ -38,14 +35,11 @@ app.layout = html.Div([
 @app.callback(
     Output('url', 'pathname'),
     Input('uploaded-data-store', 'data'),
-    Input('submit-csv', 'n_clicks'),
-    Input('submit-db', 'n_clicks'),
-    Input('submit-url', 'n_clicks'),
     prevent_initial_call=True
 )
-def redirect_when_data_ready(data, csv_clicks, db_clicks, url_clicks):
-    # If there is data and any button has been clicked, then redirect
-    if data and len(data) > 0 and (csv_clicks or db_clicks or url_clicks):
+def redirect_when_data_ready(data):
+    # If there is data, then redirect
+    if data and len(data) > 0:
         print(f"Data is ready, redirecting to processing page, data length: {len(data)}")
         return '/process'
     
